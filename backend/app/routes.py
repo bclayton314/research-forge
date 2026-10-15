@@ -51,3 +51,23 @@ def create_document():
     db.session.commit()
 
     return jsonify(document.to_dict()), 201
+
+
+@api_bp.get("/documents")
+def list_documents():
+    documents = (
+        db.session.execute(
+            db.select(Document).order_by(Document.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+    return jsonify(
+        {
+            "documents": [
+                document.to_dict()
+                for document in documents
+            ]
+        }
+    )
