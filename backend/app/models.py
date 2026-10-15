@@ -65,3 +65,25 @@ class Document(db.Model):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "filename": self.filename,
+            "original_filename": self.original_filename,
+            "content_type": self.content_type,
+            "size_bytes": self.size_bytes,
+            "storage_key": self.storage_key,
+            "status": self.status,
+            "extracted_text": self.extracted_text,
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at
+                else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat()
+                if self.updated_at
+                else None
+            ),
+        }
