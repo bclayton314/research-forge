@@ -9,6 +9,7 @@ from .extensions import db, migrate
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -33,17 +34,24 @@ def create_app(test_config=None):
         JSON_SORT_KEYS=False,
         SQLALCHEMY_DATABASE_URI=build_database_url(),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        UPLOAD_FOLDER=BACKEND_ROOT / "uploads",
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,
     )
 
     if test_config is not None:
         app.config.update(test_config)
+
+    upload_folder = Path(app.config["UPLOAD_FOLDER"])
+    upload_folder.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     CORS(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Import models so SQLAlchemy and Alembic know about them.
     from . import models  # noqa: F401
 
     from .routes import api_bp
