@@ -71,3 +71,20 @@ def list_documents():
             ]
         }
     )
+
+
+@api_bp.get("/documents/<uuid:document_id>")
+def get_document(document_id):
+    document = db.session.get(
+        Document,
+        document_id,
+    )
+
+    if document is None:
+        return jsonify(
+            {
+                "error": "document not found",
+            }
+        ), 404
+
+    return jsonify(document.to_dict())
