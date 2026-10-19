@@ -1,7 +1,10 @@
-from flask import Blueprint, jsonify, request
+from pathlib import Path
+
+from flask import Blueprint, current_app, jsonify, request
 
 from .extensions import db
 from .models import Document
+from .storage import is_allowed_file, save_uploaded_file
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -53,11 +56,65 @@ def create_document():
     return jsonify(document.to_dict()), 201
 
 
+@api_bp.post("/documents/upload")
+def upload_document():
+    if "file" not in request.files:
+        return jsonify(
+            {
+                "error": "file is required",
+            }
+        ), 400
+
+    file = request.files["file"]
+
+    if not file.filename:
+        return jsonify(
+            {
+                "error": "filename is required",
+            }
+        ), 400
+
+    if not is_allowed_file(file.filename):
+        return jsonify(
+            {
+                "error": (
+                    "unsupported file type; "
+                    "only PDF and TXT files are allowed"
+                ),
+            }
+        ), 400
+
+    upload_folder = Path(
+        current_app.config["UPLOAD_FOLDER"]
+    )
+
+    storage_filename, saved_path = save_uploaded_file(
+        file,
+        upload_folder,
+    )
+
+    document = Document(
+        filename=storage_filename,
+        original_filename=file.filename,
+        content_type=file.content_type,
+        size_bytes=saved_path.stat().st_size,
+        storage_key=storage_filename,
+        status="uploaded",
+    )
+
+    db.session.add(document)
+    db.session.commit()
+
+    return jsonify(document.to_dict()), 201
+
+
 @api_bp.get("/documents")
 def list_documents():
     documents = (
         db.session.execute(
-            db.select(Document).order_by(Document.created_at.desc())
+            db.select(Document).order_by(
+                Document.created_at.desc()
+            )
         )
         .scalars()
         .all()
