@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 
 from .extensions import db
+from .extraction import ExtractionError, extract_text
 from .models import Document
 from .storage import is_allowed_file, save_uploaded_file
 
@@ -145,3 +146,61 @@ def get_document(document_id):
         ), 404
 
     return jsonify(document.to_dict())
+
+
+@api_bp.post("/documents/<uuid:document_id>/process")
+def process_document(document_id):
+    document = db.session.get(
+        Document,
+        document_id,
+    )
+
+    if document is None:
+        return jsonify(
+            {
+                "error": "document not found",
+            }
+        ), 404
+
+    if not document.storage_key:
+        return jsonify(
+            {
+                "error": "document has no stored file",
+            }
+        ), 400
+
+    upload_folder = Path(
+        current_app.config["UPLOAD_FOLDER"]
+    )
+
+    file_path = upload_folder / document.storage_key
+
+    if not file_path.exists():
+        return jsonify(
+            {
+                "error": "stored file not found",
+            }
+        ), 404
+
+    try:
+        document.status = "processing"
+        db.session.commit()
+
+        extracted_text = extract_text(file_path)
+
+        document.extracted_text = extracted_text
+        document.status = "processed"
+
+        db.session.commit()
+
+        return jsonify(document.to_dict())
+
+    except ExtractionError as exc:
+        document.status = "failed"
+        db.session.commit()
+
+        return jsonify(
+            {
+                "error": str(exc),
+            }
+        ), 422
