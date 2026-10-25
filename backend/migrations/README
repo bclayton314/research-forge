@@ -1,1 +1,13 @@
-Single-database configuration for Flask.
+# Database migrations
+
+Start PostgreSQL and configure the database connection in the project-root
+`.env` file. Before starting the backend for the first time, run this command
+from the `backend` directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app app db upgrade
+```
+
+This applies pending migrations, including the migration that creates the
+`documents` table. Run the same command after pulling changes that add new
+migrations.
