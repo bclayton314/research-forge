@@ -1,5 +1,5 @@
 from io import BytesIO
-
+from pypdf import PdfWriter
 
 def test_process_text_document(client):
     upload_response = client.post(
@@ -70,3 +70,41 @@ def test_process_document_without_stored_file(client):
     }
 
 
+def test_process_empty_pdf_document(client, tmp_path):
+    pdf_path = tmp_path / "empty.pdf"
+
+    writer = PdfWriter()
+    writer.add_blank_page(
+        width=612,
+        height=792,
+    )
+
+    with pdf_path.open("wb") as pdf_file:
+        writer.write(pdf_file)
+
+    with pdf_path.open("rb") as pdf_file:
+        upload_response = client.post(
+            "/api/documents/upload",
+            data={
+                "file": (
+                    BytesIO(pdf_file.read()),
+                    "empty.pdf",
+                ),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert upload_response.status_code == 201
+
+    document_id = upload_response.get_json()["id"]
+
+    response = client.post(
+        f"/api/documents/{document_id}/process"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["status"] == "processed"
+    assert data["extracted_text"] == ""
