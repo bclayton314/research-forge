@@ -4,8 +4,9 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .extensions import db
 from .extraction import ExtractionError, extract_text
-from .models import Document
+from .models import Document, DocumentChunk
 from .storage import is_allowed_file, save_uploaded_file
+from .chunking import chunk_text
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -204,3 +205,68 @@ def process_document(document_id):
                 "error": str(exc),
             }
         ), 422
+
+
+@api_bp.post("/documents/<uuid:document_id>/chunk")
+def chunk_document(document_id):
+    document = db.session.get(
+        Document,
+        document_id,
+    )
+
+    if document is None:
+        return jsonify(
+            {
+                "error": "document not found",
+            }
+        ), 404
+
+    if document.status != "processed":
+        return jsonify(
+            {
+                "error": (
+                    "document must be processed "
+                    "before chunking"
+                ),
+            }
+        ), 400
+
+    if document.extracted_text is None:
+        return jsonify(
+            {
+                "error": "document has no extracted text",
+            }
+        ), 400
+
+    chunks = chunk_text(
+        document.extracted_text,
+    )
+
+    db.session.execute(
+        db.delete(DocumentChunk).where(
+            DocumentChunk.document_id
+            == document.id
+        )
+    )
+
+    for index, text in enumerate(chunks):
+        chunk = DocumentChunk(
+            document_id=document.id,
+            chunk_index=index,
+            text=text,
+            character_count=len(text),
+        )
+
+        db.session.add(chunk)
+
+    document.status = "chunked"
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "document_id": str(document.id),
+            "status": document.status,
+            "chunk_count": len(chunks),
+        }
+    )
