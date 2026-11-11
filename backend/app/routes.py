@@ -270,3 +270,43 @@ def chunk_document(document_id):
             "chunk_count": len(chunks),
         }
     )
+
+
+@api_bp.get("/documents/<uuid:document_id>/chunks")
+def list_document_chunks(document_id):
+    document = db.session.get(
+        Document,
+        document_id,
+    )
+
+    if document is None:
+        return jsonify(
+            {
+                "error": "document not found",
+            }
+        ), 404
+
+    chunks = (
+        db.session.execute(
+            db.select(DocumentChunk)
+            .where(
+                DocumentChunk.document_id
+                == document.id
+            )
+            .order_by(
+                DocumentChunk.chunk_index
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return jsonify(
+        {
+            "document_id": str(document.id),
+            "chunks": [
+                chunk.to_dict()
+                for chunk in chunks
+            ],
+        }
+    )
