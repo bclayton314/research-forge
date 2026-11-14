@@ -7,6 +7,8 @@ from .extraction import ExtractionError, extract_text
 from .models import Document, DocumentChunk
 from .storage import is_allowed_file, save_uploaded_file
 from .chunking import chunk_text
+from .search import make_snippet, parse_query, score_text
+from sqlalchemy import or_
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -308,5 +310,120 @@ def list_document_chunks(document_id):
                 chunk.to_dict()
                 for chunk in chunks
             ],
+        }
+    )
+
+
+@api_bp.get("/search")
+def search_documents():
+    query = request.args.get(
+        "q",
+        "",
+    ).strip()
+
+    if not query:
+        return jsonify(
+            {
+                "error": "q query parameter is required",
+            }
+        ), 400
+
+    try:
+        limit = int(
+            request.args.get(
+                "limit",
+                10,
+            )
+        )
+    except ValueError:
+        return jsonify(
+            {
+                "error": "limit must be an integer",
+            }
+        ), 400
+
+    limit = max(
+        1,
+        min(limit, 50),
+    )
+
+    terms = parse_query(query)
+
+    if not terms:
+        return jsonify(
+            {
+                "query": query,
+                "results": [],
+            }
+        )
+
+    conditions = [
+        DocumentChunk.text.ilike(
+            f"%{term}%"
+        )
+        for term in terms
+    ]
+
+    rows = (
+        db.session.execute(
+            db.select(
+                DocumentChunk,
+                Document,
+            )
+            .join(
+                Document,
+                DocumentChunk.document_id
+                == Document.id,
+            )
+            .where(
+                or_(*conditions)
+            )
+        )
+        .all()
+    )
+
+    results = []
+
+    for chunk, document in rows:
+        score = score_text(
+            chunk.text,
+            terms,
+        )
+
+        results.append(
+            {
+                "document_id": str(
+                    document.id
+                ),
+                "document_name": (
+                    document.original_filename
+                ),
+                "chunk_id": str(
+                    chunk.id
+                ),
+                "chunk_index": (
+                    chunk.chunk_index
+                ),
+                "score": score,
+                "snippet": make_snippet(
+                    chunk.text,
+                    terms,
+                ),
+            }
+        )
+
+    results.sort(
+        key=lambda result: result["score"],
+        reverse=True,
+    )
+
+    return jsonify(
+        {
+            "query": query,
+            "result_count": min(
+                len(results),
+                limit,
+            ),
+            "results": results[:limit],
         }
     )
