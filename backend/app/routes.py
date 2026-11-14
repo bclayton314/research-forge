@@ -9,6 +9,7 @@ from .storage import is_allowed_file, save_uploaded_file
 from .chunking import chunk_text
 from .search import make_snippet, parse_query, score_text
 from sqlalchemy import or_
+from io import BytesIO
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -427,3 +428,125 @@ def search_documents():
             "results": results[:limit],
         }
     )
+
+
+def create_searchable_document(client):
+    text = (
+        "The Boxer Rebellion occurred in China. "
+        "Foreign influence in China contributed "
+        "to considerable political unrest. "
+        "The Boxer movement opposed foreign "
+        "intervention."
+    )
+
+    upload_response = client.post(
+        "/api/documents/upload",
+        data={
+            "file": (
+                BytesIO(
+                    text.encode("utf-8")
+                ),
+                "history.txt",
+            ),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert upload_response.status_code == 201
+
+    document_id = (
+        upload_response
+        .get_json()["id"]
+    )
+
+    process_response = client.post(
+        f"/api/documents/{document_id}/process"
+    )
+
+    assert process_response.status_code == 200
+
+    chunk_response = client.post(
+        f"/api/documents/{document_id}/chunk"
+    )
+
+    assert chunk_response.status_code == 200
+
+    return document_id
+
+
+def test_search_documents(client):
+    document_id = create_searchable_document(
+        client
+    )
+
+    response = client.get(
+        "/api/search?q=boxer"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["query"] == "boxer"
+    assert data["result_count"] >= 1
+
+    result = data["results"][0]
+
+    assert result["document_id"] == document_id
+    assert result["document_name"] == "history.txt"
+    assert result["score"] >= 1
+    assert "Boxer" in result["snippet"]
+
+
+def test_search_multiple_terms(client):
+    create_searchable_document(
+        client
+    )
+
+    response = client.get(
+        "/api/search?q=china+boxer"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["result_count"] >= 1
+
+    assert (
+        data["results"][0]["score"]
+        >= 2
+    )
+
+
+def test_search_requires_query(client):
+    response = client.get(
+        "/api/search"
+    )
+
+    assert response.status_code == 400
+
+    assert response.get_json() == {
+        "error": (
+            "q query parameter is required"
+        ),
+    }
+
+
+def test_search_returns_empty_results(
+    client,
+):
+    create_searchable_document(
+        client
+    )
+
+    response = client.get(
+        "/api/search?q=quantummechanics"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["result_count"] == 0
+    assert data["results"] == []
