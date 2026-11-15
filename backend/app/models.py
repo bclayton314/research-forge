@@ -1,11 +1,13 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, String, Text, Uuid, func, ForeignKey
+from pgvector.sqlalchemy import VECTOR
+from sqlalchemy import BigInteger, DateTime, String, Text, Uuid, func, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
 
+EMBEDDING_DIMENSIONS = 384
 
 class Document(db.Model):
     __tablename__ = "documents"
@@ -136,6 +138,14 @@ class DocumentChunk(db.Model):
         back_populates="chunks",
     )
 
+    embedding: Mapped[list[float] | None] = mapped_column(
+        VECTOR(EMBEDDING_DIMENSIONS).with_variant(
+            JSON(),
+            "sqlite",
+        ),
+        nullable=True,
+    )
+
     def to_dict(self):
         return {
             "id": str(self.id),
@@ -143,6 +153,7 @@ class DocumentChunk(db.Model):
             "chunk_index": self.chunk_index,
             "text": self.text,
             "character_count": self.character_count,
+            "has_embedding": self.embedding is not None,
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at
