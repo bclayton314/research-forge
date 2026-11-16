@@ -8,6 +8,7 @@ from .models import Document, DocumentChunk
 from .storage import is_allowed_file, save_uploaded_file
 from .chunking import chunk_text
 from .search import make_snippet, parse_query, score_text
+from .embeddings import embed_texts
 from sqlalchemy import or_
 from io import BytesIO
 
@@ -550,3 +551,69 @@ def test_search_returns_empty_results(
 
     assert data["result_count"] == 0
     assert data["results"] == []
+
+
+@api_bp.post("/documents/<uuid:document_id>/embed")
+def embed_document(document_id):
+    document = db.session.get(
+        Document,
+        document_id,
+    )
+
+    if document is None:
+        return jsonify(
+            {
+                "error": "document not found",
+            }
+        ), 404
+
+    chunks = (
+        db.session.execute(
+            db.select(DocumentChunk)
+            .where(
+                DocumentChunk.document_id
+                == document.id
+            )
+            .order_by(
+                DocumentChunk.chunk_index
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    if not chunks:
+        return jsonify(
+            {
+                "error": (
+                    "document must be chunked "
+                    "before embedding"
+                ),
+            }
+        ), 400
+
+    texts = [
+        chunk.text
+        for chunk in chunks
+    ]
+
+    embeddings = embed_texts(texts)
+
+    for chunk, embedding in zip(
+        chunks,
+        embeddings,
+        strict=True,
+    ):
+        chunk.embedding = embedding
+
+    document.status = "embedded"
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "document_id": str(document.id),
+            "status": document.status,
+            "embedded_chunk_count": len(chunks),
+        }
+    )
