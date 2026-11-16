@@ -8,7 +8,7 @@ from .models import Document, DocumentChunk
 from .storage import is_allowed_file, save_uploaded_file
 from .chunking import chunk_text
 from .search import make_snippet, parse_query, score_text
-from .embeddings import embed_texts
+from .embeddings import embed_text, embed_texts
 from sqlalchemy import or_
 from io import BytesIO
 
@@ -615,5 +615,101 @@ def embed_document(document_id):
             "document_id": str(document.id),
             "status": document.status,
             "embedded_chunk_count": len(chunks),
+        }
+    )
+
+
+@api_bp.get("/search/semantic")
+def semantic_search():
+    query = request.args.get(
+        "q",
+        "",
+    ).strip()
+
+    if not query:
+        return jsonify(
+            {
+                "error": "q query parameter is required",
+            }
+        ), 400
+
+    try:
+        limit = int(
+            request.args.get(
+                "limit",
+                10,
+            )
+        )
+    except ValueError:
+        return jsonify(
+            {
+                "error": "limit must be an integer",
+            }
+        ), 400
+
+    limit = max(
+        1,
+        min(limit, 50),
+    )
+
+    query_embedding = embed_text(query)
+
+    distance = (
+        DocumentChunk.embedding
+        .cosine_distance(query_embedding)
+    )
+
+    rows = (
+        db.session.execute(
+            db.select(
+                DocumentChunk,
+                Document,
+                distance.label("distance"),
+            )
+            .join(
+                Document,
+                DocumentChunk.document_id
+                == Document.id,
+            )
+            .where(
+                DocumentChunk.embedding.is_not(None)
+            )
+            .order_by(distance)
+            .limit(limit)
+        )
+        .all()
+    )
+
+    results = []
+
+    for chunk, document, cosine_distance in rows:
+        similarity = (
+            1.0 - float(cosine_distance)
+        )
+
+        results.append(
+            {
+                "document_id": str(
+                    document.id
+                ),
+                "document_name": (
+                    document.original_filename
+                ),
+                "chunk_id": str(
+                    chunk.id
+                ),
+                "chunk_index": (
+                    chunk.chunk_index
+                ),
+                "similarity": similarity,
+                "text": chunk.text,
+            }
+        )
+
+    return jsonify(
+        {
+            "query": query,
+            "result_count": len(results),
+            "results": results,
         }
     )
