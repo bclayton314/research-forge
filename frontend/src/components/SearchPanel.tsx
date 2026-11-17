@@ -1,17 +1,20 @@
+```tsx
 import {
   type FormEvent,
   useState,
 } from 'react'
 
 import {
+  hybridSearch,
   keywordSearch,
   semanticSearch,
 } from '../api/api'
 
 
 type SearchMode =
-  | 'keyword'
+  | 'hybrid'
   | 'semantic'
+  | 'keyword'
 
 
 type SearchResult = {
@@ -25,8 +28,9 @@ type SearchResult = {
 
 function SearchPanel() {
   const [query, setQuery] = useState('')
+
   const [mode, setMode] =
-    useState<SearchMode>('semantic')
+    useState<SearchMode>('hybrid')
 
   const [results, setResults] =
     useState<SearchResult[]>([])
@@ -55,7 +59,9 @@ function SearchPanel() {
 
       if (mode === 'keyword') {
         const response =
-          await keywordSearch(trimmedQuery)
+          await keywordSearch(
+            trimmedQuery,
+          )
 
         setResults(
           response.results.map(
@@ -66,12 +72,16 @@ function SearchPanel() {
                 result.document_name,
               chunkIndex:
                 result.chunk_index,
-              score: result.score,
-              text: result.snippet,
+              score:
+                result.score,
+              text:
+                result.snippet,
             }),
           ),
         )
-      } else {
+      } else if (
+        mode === 'semantic'
+      ) {
         const response =
           await semanticSearch(
             trimmedQuery,
@@ -88,7 +98,30 @@ function SearchPanel() {
                 result.chunk_index,
               score:
                 result.similarity,
-              text: result.text,
+              text:
+                result.text,
+            }),
+          ),
+        )
+      } else {
+        const response =
+          await hybridSearch(
+            trimmedQuery,
+          )
+
+        setResults(
+          response.results.map(
+            (result) => ({
+              documentId:
+                result.document_id,
+              documentName:
+                result.document_name,
+              chunkIndex:
+                result.chunk_index,
+              score:
+                result.rrf_score,
+              text:
+                result.text,
             }),
           ),
         )
@@ -120,7 +153,9 @@ function SearchPanel() {
           value={query}
           placeholder="Search your research..."
           onChange={(event) =>
-            setQuery(event.target.value)
+            setQuery(
+              event.target.value,
+            )
           }
         />
 
@@ -128,10 +163,15 @@ function SearchPanel() {
           value={mode}
           onChange={(event) =>
             setMode(
-              event.target.value as SearchMode,
+              event.target
+                .value as SearchMode,
             )
           }
         >
+          <option value="hybrid">
+            Hybrid
+          </option>
+
           <option value="semantic">
             Semantic
           </option>
@@ -165,7 +205,11 @@ function SearchPanel() {
           (result, index) => (
             <article
               className="search-result"
-              key={`${result.documentId}-${result.chunkIndex}-${index}`}
+              key={
+                `${result.documentId}-` +
+                `${result.chunkIndex}-` +
+                `${index}`
+              }
             >
               <div className="result-heading">
                 <strong>
@@ -173,16 +217,21 @@ function SearchPanel() {
                 </strong>
 
                 <span>
-                  Chunk {result.chunkIndex + 1}
+                  Chunk{' '}
+                  {result.chunkIndex + 1}
                 </span>
               </div>
 
-              <p>{result.text}</p>
+              <p>
+                {result.text}
+              </p>
 
               <small>
                 {mode === 'semantic'
                   ? `Similarity: ${result.score.toFixed(3)}`
-                  : `Keyword score: ${result.score}`}
+                  : mode === 'keyword'
+                    ? `Keyword score: ${result.score}`
+                    : `Hybrid score: ${result.score.toFixed(4)}`}
               </small>
             </article>
           ),
@@ -194,7 +243,8 @@ function SearchPanel() {
         results.length === 0 &&
         !error && (
           <p className="muted">
-            No matching passages found.
+            No matching passages
+            found.
           </p>
         )}
     </section>
@@ -203,3 +253,4 @@ function SearchPanel() {
 
 
 export default SearchPanel
+```

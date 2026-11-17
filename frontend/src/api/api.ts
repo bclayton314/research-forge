@@ -64,6 +64,26 @@ export type SemanticSearchResponse = {
   results: SemanticSearchResult[]
 }
 
+export type HybridSearchResult = {
+  document_id: string
+  document_name: string
+  chunk_id: string
+  chunk_index: number
+  keyword_score: number | null
+  semantic_score: number | null
+  rrf_score: number
+  matched_keyword: boolean
+  matched_semantic: boolean
+  text: string
+}
+
+export type HybridSearchResponse = {
+  query: string
+  strategy: string
+  result_count: number
+  results: HybridSearchResult[]
+}
+
 
 async function request<T>(
   url: string,
@@ -179,5 +199,18 @@ export function semanticSearch(
 
   return request<SemanticSearchResponse>(
     `/api/search/semantic?${params.toString()}`,
+  )
+}
+
+
+export function hybridSearch(
+  query: string,
+): Promise<HybridSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+  })
+
+  return request<HybridSearchResponse>(
+    `/api/search/hybrid?${params.toString()}`,
   )
 }
