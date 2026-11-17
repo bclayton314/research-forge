@@ -9,6 +9,7 @@ from .storage import is_allowed_file, save_uploaded_file
 from .chunking import chunk_text
 from .search import make_snippet, parse_query, score_text
 from .embeddings import embed_text, embed_texts
+from .retrieval import hybrid_search
 from sqlalchemy import or_
 from io import BytesIO
 
@@ -710,6 +711,58 @@ def semantic_search():
         {
             "query": query,
             "result_count": len(results),
+            "results": results,
+        }
+    )
+
+
+@api_bp.get("/search/hybrid")
+def hybrid_search_endpoint():
+    query = request.args.get(
+        "q",
+        "",
+    ).strip()
+
+    if not query:
+        return jsonify(
+            {
+                "error":
+                    "q query parameter is required",
+            }
+        ), 400
+
+    try:
+        limit = int(
+            request.args.get(
+                "limit",
+                10,
+            )
+        )
+    except ValueError:
+        return jsonify(
+            {
+                "error":
+                    "limit must be an integer",
+            }
+        ), 400
+
+    limit = max(
+        1,
+        min(limit, 50),
+    )
+
+    results = hybrid_search(
+        query,
+        limit=limit,
+    )
+
+    return jsonify(
+        {
+            "query": query,
+            "strategy": "hybrid",
+            "result_count": len(
+                results
+            ),
             "results": results,
         }
     )
