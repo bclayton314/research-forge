@@ -1,8 +1,4 @@
-```tsx
-import {
-  type FormEvent,
-  useState,
-} from 'react'
+import { type FormEvent, useState } from 'react'
 
 import {
   hybridSearch,
@@ -10,12 +6,7 @@ import {
   semanticSearch,
 } from '../api/api'
 
-
-type SearchMode =
-  | 'hybrid'
-  | 'semantic'
-  | 'keyword'
-
+type SearchMode = 'hybrid' | 'semantic' | 'keyword'
 
 type SearchResult = {
   documentId: string
@@ -25,26 +16,14 @@ type SearchResult = {
   text: string
 }
 
-
 function SearchPanel() {
   const [query, setQuery] = useState('')
+  const [mode, setMode] = useState<SearchMode>('hybrid')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const [mode, setMode] =
-    useState<SearchMode>('hybrid')
-
-  const [results, setResults] =
-    useState<SearchResult[]>([])
-
-  const [searching, setSearching] =
-    useState(false)
-
-  const [error, setError] =
-    useState<string | null>(null)
-
-
-  async function handleSearch(
-    event: FormEvent,
-  ) {
+  async function handleSearch(event: FormEvent) {
     event.preventDefault()
 
     const trimmedQuery = query.trim()
@@ -58,72 +37,40 @@ function SearchPanel() {
       setError(null)
 
       if (mode === 'keyword') {
-        const response =
-          await keywordSearch(
-            trimmedQuery,
-          )
+        const response = await keywordSearch(trimmedQuery)
 
         setResults(
-          response.results.map(
-            (result) => ({
-              documentId:
-                result.document_id,
-              documentName:
-                result.document_name,
-              chunkIndex:
-                result.chunk_index,
-              score:
-                result.score,
-              text:
-                result.snippet,
-            }),
-          ),
+          response.results.map((result) => ({
+            documentId: result.document_id,
+            documentName: result.document_name,
+            chunkIndex: result.chunk_index,
+            score: result.score,
+            text: result.snippet,
+          })),
         )
-      } else if (
-        mode === 'semantic'
-      ) {
-        const response =
-          await semanticSearch(
-            trimmedQuery,
-          )
+      } else if (mode === 'semantic') {
+        const response = await semanticSearch(trimmedQuery)
 
         setResults(
-          response.results.map(
-            (result) => ({
-              documentId:
-                result.document_id,
-              documentName:
-                result.document_name,
-              chunkIndex:
-                result.chunk_index,
-              score:
-                result.similarity,
-              text:
-                result.text,
-            }),
-          ),
+          response.results.map((result) => ({
+            documentId: result.document_id,
+            documentName: result.document_name,
+            chunkIndex: result.chunk_index,
+            score: result.similarity,
+            text: result.text,
+          })),
         )
       } else {
-        const response =
-          await hybridSearch(
-            trimmedQuery,
-          )
+        const response = await hybridSearch(trimmedQuery)
 
         setResults(
-          response.results.map(
-            (result) => ({
-              documentId:
-                result.document_id,
-              documentName:
-                result.document_name,
-              chunkIndex:
-                result.chunk_index,
-              score:
-                result.rrf_score,
-              text:
-                result.text,
-            }),
-          ),
+          response.results.map((result) => ({
+            documentId: result.document_id,
+            documentName: result.document_name,
+            chunkIndex: result.chunk_index,
+            score: result.rrf_score,
+            text: result.text,
+          })),
         )
       }
     } catch (err) {
@@ -139,6 +86,17 @@ function SearchPanel() {
     }
   }
 
+  function formatScore(result: SearchResult) {
+    if (mode === 'semantic') {
+      return `Similarity: ${result.score.toFixed(3)}`
+    }
+
+    if (mode === 'keyword') {
+      return `Keyword score: ${result.score}`
+    }
+
+    return `Hybrid score: ${result.score.toFixed(4)}`
+  }
 
   return (
     <section className="panel">
@@ -152,20 +110,13 @@ function SearchPanel() {
           type="search"
           value={query}
           placeholder="Search your research..."
-          onChange={(event) =>
-            setQuery(
-              event.target.value,
-            )
-          }
+          onChange={(event) => setQuery(event.target.value)}
         />
 
         <select
           value={mode}
           onChange={(event) =>
-            setMode(
-              event.target
-                .value as SearchMode,
-            )
+            setMode(event.target.value as SearchMode)
           }
         >
           <option value="hybrid">
@@ -183,14 +134,9 @@ function SearchPanel() {
 
         <button
           type="submit"
-          disabled={
-            searching ||
-            !query.trim()
-          }
+          disabled={searching || !query.trim()}
         >
-          {searching
-            ? 'Searching...'
-            : 'Search'}
+          {searching ? 'Searching...' : 'Search'}
         </button>
       </form>
 
@@ -201,56 +147,42 @@ function SearchPanel() {
       )}
 
       <div className="search-results">
-        {results.map(
-          (result, index) => (
-            <article
-              className="search-result"
-              key={
-                `${result.documentId}-` +
-                `${result.chunkIndex}-` +
-                `${index}`
-              }
-            >
-              <div className="result-heading">
-                <strong>
-                  {result.documentName}
-                </strong>
+        {results.map((result) => (
+          <article
+            className="search-result"
+            key={result.documentId + '-' + result.chunkIndex}
+          >
+            <div className="result-heading">
+              <strong>
+                {result.documentName}
+              </strong>
 
-                <span>
-                  Chunk{' '}
-                  {result.chunkIndex + 1}
-                </span>
-              </div>
+              <span>
+                Chunk {result.chunkIndex + 1}
+              </span>
+            </div>
 
-              <p>
-                {result.text}
-              </p>
+            <p>
+              {result.text}
+            </p>
 
-              <small>
-                {mode === 'semantic'
-                  ? `Similarity: ${result.score.toFixed(3)}`
-                  : mode === 'keyword'
-                    ? `Keyword score: ${result.score}`
-                    : `Hybrid score: ${result.score.toFixed(4)}`}
-              </small>
-            </article>
-          ),
-        )}
+            <small>
+              {formatScore(result)}
+            </small>
+          </article>
+        ))}
       </div>
 
       {!searching &&
-        query &&
+        query.trim() &&
         results.length === 0 &&
         !error && (
           <p className="muted">
-            No matching passages
-            found.
+            No matching passages found.
           </p>
         )}
     </section>
   )
 }
 
-
 export default SearchPanel
-```
