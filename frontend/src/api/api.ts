@@ -3,12 +3,181 @@ export type HealthResponse = {
   status: string
 }
 
-export async function getHealth(): Promise<HealthResponse> {
-  const response = await fetch('/api/health')
+export type Document = {
+  id: string
+  filename: string
+  original_filename: string
+  content_type: string | null
+  size_bytes: number | null
+  storage_key: string | null
+  status: string
+  extracted_text: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type DocumentListResponse = {
+  documents: Document[]
+}
+
+export type ProcessDocumentResponse = Document
+
+export type ChunkDocumentResponse = {
+  document_id: string
+  status: string
+  chunk_count: number
+}
+
+export type EmbedDocumentResponse = {
+  document_id: string
+  status: string
+  embedded_chunk_count: number
+}
+
+export type KeywordSearchResult = {
+  document_id: string
+  document_name: string
+  chunk_id: string
+  chunk_index: number
+  score: number
+  snippet: string
+}
+
+export type KeywordSearchResponse = {
+  query: string
+  result_count: number
+  results: KeywordSearchResult[]
+}
+
+export type SemanticSearchResult = {
+  document_id: string
+  document_name: string
+  chunk_id: string
+  chunk_index: number
+  similarity: number
+  text: string
+}
+
+export type SemanticSearchResponse = {
+  query: string
+  result_count: number
+  results: SemanticSearchResult[]
+}
+
+
+async function request<T>(
+  url: string,
+  options?: RequestInit,
+): Promise<T> {
+  const response = await fetch(url, options)
 
   if (!response.ok) {
-    throw new Error('Failed to connect to the API')
+    const data = await response
+      .json()
+      .catch(() => null)
+
+    const message =
+      data?.error ??
+      `Request failed with status ${response.status}`
+
+    throw new Error(message)
   }
 
   return response.json()
+}
+
+
+export function getHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>(
+    '/api/health',
+  )
+}
+
+
+export function getDocuments(): Promise<DocumentListResponse> {
+  return request<DocumentListResponse>(
+    '/api/documents',
+  )
+}
+
+
+export async function uploadDocument(
+  file: File,
+): Promise<Document> {
+  const formData = new FormData()
+
+  formData.append(
+    'file',
+    file,
+  )
+
+  return request<Document>(
+    '/api/documents/upload',
+    {
+      method: 'POST',
+      body: formData,
+    },
+  )
+}
+
+
+export function processDocument(
+  documentId: string,
+): Promise<ProcessDocumentResponse> {
+  return request<ProcessDocumentResponse>(
+    `/api/documents/${documentId}/process`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+
+export function chunkDocument(
+  documentId: string,
+): Promise<ChunkDocumentResponse> {
+  return request<ChunkDocumentResponse>(
+    `/api/documents/${documentId}/chunk`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+
+export function embedDocument(
+  documentId: string,
+): Promise<EmbedDocumentResponse> {
+  return request<EmbedDocumentResponse>(
+    `/api/documents/${documentId}/embed`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+
+export function keywordSearch(
+  query: string,
+): Promise<KeywordSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+  })
+
+  return request<KeywordSearchResponse>(
+    `/api/search?${params.toString()}`,
+  )
+}
+
+
+export function semanticSearch(
+  query: string,
+): Promise<SemanticSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+  })
+
+  return request<SemanticSearchResponse>(
+    `/api/search/semantic?${params.toString()}`,
+  )
 }
