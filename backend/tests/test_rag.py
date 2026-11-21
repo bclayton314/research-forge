@@ -97,3 +97,35 @@ def test_ask_requires_question(
     assert response.get_json() == {
         "error": "question is required",
     }
+
+
+def test_mock_llm_answer(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "RESEARCHFORGE_MOCK_LLM",
+        "true",
+    )
+
+    from app.llm import (
+        generate_grounded_answer,
+    )
+
+    answer = generate_grounded_answer(
+        "What happened?",
+        (
+            "[Source 1]\n"
+            "The expedition arrived "
+            "in June."
+        ),
+    )
+
+    assert (
+        "Mock ResearchForge answer"
+        in answer
+    )
+
+    assert (
+        "The expedition arrived"
+        in answer
+    )

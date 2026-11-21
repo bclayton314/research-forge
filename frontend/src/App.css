@@ -132,3 +132,54 @@ form {
 .error {
   font-weight: 600;
 }
+
+.ask-form {
+  align-items: stretch;
+}
+
+.ask-form textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px;
+  resize: vertical;
+  font: inherit;
+}
+
+.answer-panel {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #666;
+  border-radius: 8px;
+}
+
+.answer-panel h3 {
+  margin-top: 0;
+}
+
+.answer-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.sources-panel {
+  margin-top: 20px;
+}
+
+.source-list {
+  display: grid;
+  gap: 10px;
+}
+
+.source-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #666;
+  border-radius: 8px;
+}
+
+.source-card small {
+  margin-left: auto;
+  opacity: 0.7;
+}

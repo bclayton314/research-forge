@@ -214,3 +214,35 @@ export function hybridSearch(
     `/api/search/hybrid?${params.toString()}`,
   )
 }
+
+export type AskSource = {
+  label: string
+  document_id: string
+  document_name: string
+  chunk_id: string
+  chunk_index: number
+  rrf_score: number
+}
+
+export type AskResponse = {
+  question: string
+  answer: string
+  sources: AskSource[]
+}
+
+export function askResearchForge(
+  question: string,
+): Promise<AskResponse> {
+  return request<AskResponse>(
+    '/api/ask',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question,
+      }),
+    },
+  )
+}

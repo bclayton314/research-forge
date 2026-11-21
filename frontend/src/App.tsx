@@ -13,6 +13,7 @@ import {
 import DocumentList from './components/DocumentList'
 import DocumentUploader from './components/DocumentUploader'
 import SearchPanel from './components/SearchPanel'
+import AskPanel from './components/AskPanel'
 
 import './App.css'
 
@@ -130,6 +131,7 @@ function App() {
       )}
 
       <SearchPanel />
+      <AskPanel />
     </main>
   )
 }
