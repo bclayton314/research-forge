@@ -7,12 +7,10 @@ import {
   processDocument,
 } from '../api/api'
 
-
 type DocumentListProps = {
   documents: Document[]
   onRefresh: () => Promise<void>
 }
-
 
 function formatSize(
   bytes: number | null,
@@ -37,7 +35,6 @@ function formatSize(
   ).toFixed(1)} MB`
 }
 
-
 function DocumentList({
   documents,
   onRefresh,
@@ -47,7 +44,6 @@ function DocumentList({
 
   const [error, setError] =
     useState<string | null>(null)
-
 
   async function prepareDocument(
     document: Document,
@@ -110,7 +106,6 @@ function DocumentList({
     }
   }
 
-
   return (
     <section className="panel">
       <h2>Documents</h2>
@@ -164,12 +159,17 @@ function DocumentList({
                     type="button"
                     disabled={isWorking}
                     onClick={() =>
-                      prepareDocument(document)
+                      prepareDocument(
+                        document,
+                      )
                     }
                   >
                     {isWorking
                       ? 'Preparing...'
-                      : 'Prepare'}
+                      : document.status ===
+                          'failed'
+                        ? 'Retry'
+                        : 'Prepare'}
                   </button>
                 )}
 
@@ -187,6 +187,5 @@ function DocumentList({
     </section>
   )
 }
-
 
 export default DocumentList

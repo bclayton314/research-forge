@@ -6,32 +6,40 @@ import {
 
 import {
   type Document,
+  type SystemStatusResponse,
   getDocuments,
   getHealth,
-  getSystemStatus
+  getSystemStatus,
 } from './api/api'
 
+import AskPanel from './components/AskPanel'
 import DocumentList from './components/DocumentList'
 import DocumentUploader from './components/DocumentUploader'
 import SearchPanel from './components/SearchPanel'
-import AskPanel from './components/AskPanel'
 
 import './App.css'
-
 
 function App() {
   const [apiStatus, setApiStatus] =
     useState('Checking...')
 
+  const [systemStatus, setSystemStatus] =
+    useState<SystemStatusResponse | null>(
+      null,
+    )
+
   const [documents, setDocuments] =
     useState<Document[]>([])
 
-  const [loadingDocuments, setLoadingDocuments] =
-    useState(true)
+  const [
+    loadingDocuments,
+    setLoadingDocuments,
+  ] = useState(true)
 
-  const [documentError, setDocumentError] =
-    useState<string | null>(null)
-
+  const [
+    documentError,
+    setDocumentError,
+  ] = useState<string | null>(null)
 
   const loadDocuments = useCallback(
     async () => {
@@ -57,6 +65,20 @@ function App() {
     [],
   )
 
+  const loadSystemStatus =
+    useCallback(
+      async () => {
+        try {
+          const status =
+            await getSystemStatus()
+
+          setSystemStatus(status)
+        } catch {
+          setSystemStatus(null)
+        }
+      },
+      [],
+    )
 
   useEffect(() => {
     async function initialize() {
@@ -64,17 +86,26 @@ function App() {
         const health =
           await getHealth()
 
-        setApiStatus(health.status)
+        setApiStatus(
+          health.status,
+        )
       } catch {
-        setApiStatus('unavailable')
+        setApiStatus(
+          'unavailable',
+        )
       }
 
-      await loadDocuments()
+      await Promise.all([
+        loadDocuments(),
+        loadSystemStatus(),
+      ])
     }
 
     initialize()
-  }, [loadDocuments])
-
+  }, [
+    loadDocuments,
+    loadSystemStatus,
+  ])
 
   function handleUploaded(
     document: Document,
@@ -85,8 +116,14 @@ function App() {
         ...current,
       ],
     )
+
+    void loadSystemStatus()
   }
 
+  async function refreshDocuments() {
+    await loadDocuments()
+    await loadSystemStatus()
+  }
 
   return (
     <main className="app-shell">
@@ -98,6 +135,36 @@ function App() {
             AI-powered research and
             document analysis.
           </p>
+
+          {systemStatus && (
+            <div className="system-summary">
+              <span>
+                Documents:{' '}
+                {
+                  systemStatus
+                    .document_count
+                }
+              </span>
+
+              <span>
+                Search ready:{' '}
+                {
+                  systemStatus
+                    .embedded_document_count
+                }
+              </span>
+
+              <span>
+                LLM:{' '}
+                {systemStatus.mock_llm
+                  ? 'Mock'
+                  : systemStatus
+                        .openai_configured
+                    ? 'Live'
+                    : 'Not configured'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="api-status">
@@ -127,15 +194,17 @@ function App() {
       ) : (
         <DocumentList
           documents={documents}
-          onRefresh={loadDocuments}
+          onRefresh={
+            refreshDocuments
+          }
         />
       )}
 
       <SearchPanel />
+
       <AskPanel />
     </main>
   )
 }
-
 
 export default App
