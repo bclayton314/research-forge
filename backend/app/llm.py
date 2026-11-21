@@ -8,6 +8,16 @@ class LLMError(Exception):
     """Raised when an LLM request cannot be completed."""
 
 
+def is_mock_mode() -> bool:
+    return (
+        os.getenv(
+            "RESEARCHFORGE_MOCK_LLM",
+            "false",
+        ).lower()
+        == "true"
+    )
+
+
 @lru_cache(maxsize=1)
 def get_openai_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
@@ -33,10 +43,40 @@ def get_model_name() -> str:
     return model
 
 
+def generate_mock_answer(
+    question: str,
+    context: str,
+) -> str:
+    del question
+
+    context_preview = context.strip()
+
+    if len(context_preview) > 900:
+        context_preview = (
+            context_preview[:900]
+            + "..."
+        )
+
+    return (
+        "Mock ResearchForge answer:\n\n"
+        "A real language model would generate "
+        "a grounded answer from the retrieved "
+        "research context.\n\n"
+        "Retrieved context preview:\n\n"
+        f"{context_preview}"
+    )
+
+
 def generate_grounded_answer(
     question: str,
     context: str,
 ) -> str:
+    if is_mock_mode():
+        return generate_mock_answer(
+            question,
+            context,
+        )
+
     client = get_openai_client()
 
     try:
