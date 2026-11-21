@@ -10,6 +10,8 @@ from .chunking import chunk_text
 from .search import make_snippet, parse_query, score_text
 from .embeddings import embed_text, embed_texts
 from .retrieval import hybrid_search
+from .llm import LLMError
+from .rag import answer_question
 from sqlalchemy import or_
 from io import BytesIO
 
@@ -766,3 +768,38 @@ def hybrid_search_endpoint():
             "results": results,
         }
     )
+
+
+@api_bp.post("/ask")
+def ask_question():
+    data = request.get_json(
+        silent=True,
+    ) or {}
+
+    question = (
+        data.get("question", "")
+        .strip()
+    )
+
+    if not question:
+        return jsonify(
+            {
+                "error": (
+                    "question is required"
+                ),
+            }
+        ), 400
+
+    try:
+        result = answer_question(
+            question
+        )
+
+    except LLMError as exc:
+        return jsonify(
+            {
+                "error": str(exc),
+            }
+        ), 502
+
+    return jsonify(result)
