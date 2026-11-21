@@ -246,3 +246,18 @@ export function askResearchForge(
     },
   )
 }
+
+export type SystemStatusResponse = {
+  status: string
+  mock_llm: boolean
+  openai_configured: boolean
+  document_count: number
+  embedded_document_count: number
+}
+
+export function getSystemStatus():
+  Promise<SystemStatusResponse> {
+  return request<SystemStatusResponse>(
+    '/api/system/status',
+  )
+}

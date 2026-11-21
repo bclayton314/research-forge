@@ -14,6 +14,7 @@ from .llm import LLMError
 from .rag import answer_question
 from sqlalchemy import or_
 from io import BytesIO
+import os
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -803,3 +804,54 @@ def ask_question():
         ), 502
 
     return jsonify(result)
+
+
+@api_bp.get("/system/status")
+def system_status():
+    mock_llm = (
+        os.getenv(
+            "RESEARCHFORGE_MOCK_LLM",
+            "false",
+        ).lower()
+        == "true"
+    )
+
+    openai_configured = bool(
+        os.getenv("OPENAI_API_KEY")
+    )
+
+    document_count = (
+        db.session.scalar(
+            db.select(
+                db.func.count(Document.id)
+            )
+        )
+        or 0
+    )
+
+    embedded_count = (
+        db.session.scalar(
+            db.select(
+                db.func.count(Document.id)
+            ).where(
+                Document.status == "embedded"
+            )
+        )
+        or 0
+    )
+
+    return jsonify(
+        {
+            "status": "ok",
+            "mock_llm": mock_llm,
+            "openai_configured": (
+                openai_configured
+            ),
+            "document_count": (
+                document_count
+            ),
+            "embedded_document_count": (
+                embedded_count
+            ),
+        }
+    )

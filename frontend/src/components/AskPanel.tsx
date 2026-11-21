@@ -126,18 +126,26 @@ function AskPanel() {
                 className="source-card"
                 key={source.chunk_id}
               >
-                <strong>
-                  [{source.label}]
-                </strong>
+                <div className="source-main">
+                  <strong>
+                    [{source.label}]
+                  </strong>
 
-                <span>
-                  {source.document_name}
-                </span>
+                  <span>
+                    {source.document_name}
+                  </span>
+                </div>
 
-                <small>
-                  Chunk{' '}
-                  {source.chunk_index + 1}
-                </small>
+                <div className="source-meta">
+                  <span>
+                    Chunk {source.chunk_index + 1}
+                  </span>
+
+                  <span>
+                    Retrieval score:{' '}
+                    {source.rrf_score.toFixed(4)}
+                  </span>
+                </div>
               </article>
             ))}
           </div>

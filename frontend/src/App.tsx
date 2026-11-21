@@ -8,6 +8,7 @@ import {
   type Document,
   getDocuments,
   getHealth,
+  getSystemStatus
 } from './api/api'
 
 import DocumentList from './components/DocumentList'

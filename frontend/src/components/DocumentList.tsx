@@ -56,15 +56,44 @@ function DocumentList({
       setWorkingId(document.id)
       setError(null)
 
-      if (document.status === 'uploaded') {
-        await processDocument(document.id)
-        await chunkDocument(document.id)
-        await embedDocument(document.id)
-      } else if (document.status === 'processed') {
-        await chunkDocument(document.id)
-        await embedDocument(document.id)
-      } else if (document.status === 'chunked') {
-        await embedDocument(document.id)
+      let currentStatus =
+        document.status
+
+      if (
+        currentStatus === 'uploaded' ||
+        currentStatus === 'failed'
+      ) {
+        const processed =
+          await processDocument(
+            document.id,
+          )
+
+        currentStatus =
+          processed.status
+      }
+
+      if (
+        currentStatus === 'processed'
+      ) {
+        const chunked =
+          await chunkDocument(
+            document.id,
+          )
+
+        currentStatus =
+          chunked.status
+      }
+
+      if (
+        currentStatus === 'chunked'
+      ) {
+        const embedded =
+          await embedDocument(
+            document.id,
+          )
+
+        currentStatus =
+          embedded.status
       }
 
       await onRefresh()
@@ -74,6 +103,8 @@ function DocumentList({
           ? err.message
           : 'Document preparation failed',
       )
+
+      await onRefresh()
     } finally {
       setWorkingId(null)
     }
